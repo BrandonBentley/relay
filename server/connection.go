@@ -13,6 +13,9 @@ var BufferSize = 4096
 var StartingPortNumber = 8081
 var ConnectionChannelSize = 10
 
+var MonitorPort = 8079
+var ConnectionMonitor *Monitor
+
 func init() {
 	connectionChannels = map[int]chan Connection{}
 }
@@ -56,13 +59,15 @@ func (c Connection) String() string {
 type ConnectionCoupler struct {
 	ServerConn Connection
 	ClientConn Connection
+	port       int
 	wg         *sync.WaitGroup
 }
 
-func NewConnectionCoupler(server, client Connection) *ConnectionCoupler {
+func NewConnectionCoupler(server, client Connection, port int) *ConnectionCoupler {
 	return &ConnectionCoupler{
 		ServerConn: server,
 		ClientConn: client,
+		port:       port,
 		wg:         &sync.WaitGroup{},
 	}
 }
@@ -83,6 +88,7 @@ func (cc *ConnectionCoupler) IsActive() bool {
 }
 
 func (cc *ConnectionCoupler) Couple() {
+	ConnectionMonitor.connectionCountChannels[cc.port] <- 1
 	cc.wg.Add(2)
 	go func() {
 		for {
@@ -105,5 +111,9 @@ func (cc *ConnectionCoupler) Couple() {
 			}
 		}
 		cc.wg.Done()
+	}()
+	go func() {
+		cc.wg.Wait()
+		ConnectionMonitor.connectionCountChannels[cc.port] <- -1
 	}()
 }

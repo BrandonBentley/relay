@@ -15,6 +15,7 @@ import (
 func TestEchoServer(t *testing.T) {
 	port := 9000
 	relayhost := "localhost"
+	server.MonitorPort = 9999
 	server.StartingPortNumber = 9001
 	expectedMessage := "Hello, world"
 	go func() {
@@ -66,7 +67,7 @@ func TestEchoServer(t *testing.T) {
 	}
 
 	if tc.ReceivedString != expectedMessage {
-		t.Errorf(`Echo Server ReceivedString Mismatch. Expected "%v" got "%v"`, expectedMessage, tc.ReceivedString)
+		t.Errorf(`Echo Client ReceivedString Mismatch. Expected "%v" got "%v"`, expectedMessage, tc.ReceivedString)
 	}
 }
 

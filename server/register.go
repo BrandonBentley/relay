@@ -28,7 +28,6 @@ func registerNewRelayConnections(ln net.Listener) {
 // returns true if connection was a newly registered service.
 func handleRelayConnection(conn net.Conn, port int) bool {
 	c := NewConnection(conn)
-	fmt.Println("New Connection")
 	timer := time.NewTimer(time.Millisecond * 1000)
 
 	ch := make(chan bool, 0)
@@ -91,6 +90,9 @@ func NewRelayService(conn Connection, port int) relayService {
 }
 
 func (r *relayService) Start() error {
+
+	ConnectionMonitor.Add(r.port)
+	fmt.Println("ADDED ", r.port)
 	rln, err := net.Listen("tcp", fmt.Sprintf(":%v", r.port))
 	if err != nil {
 		fmt.Println("Failed to Start Relay Service: %v", err)
@@ -107,6 +109,7 @@ func (r *relayService) Start() error {
 				break
 			}
 		}
+		ConnectionMonitor.Delete(r.port)
 		fmt.Printf("Relay Client: %v Disconnected\n", fmt.Sprintf("%v:%v", r.address, r.port))
 	}()
 	go func() {
@@ -125,10 +128,9 @@ func (r *relayService) Start() error {
 				clientConnection.Close()
 				continue
 			}
-			coupler := NewConnectionCoupler(serverConnection, clientConnection)
+			coupler := NewConnectionCoupler(serverConnection, clientConnection, r.port)
 			coupler.Couple()
 		}
-
 	}()
 	return nil
 }

@@ -61,7 +61,7 @@ func (l *Listener) Accept() (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	conn.Write([]byte(l.relayedPath + "\n"))
+	conn.Write([]byte(l.relayedPath))
 	return conn, nil
 }
 

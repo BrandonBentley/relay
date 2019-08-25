@@ -7,6 +7,7 @@ import (
 )
 
 func StartServer(port int) {
+	ConnectionMonitor = NewMonitor(MonitorPort)
 	ln, err := net.Listen("tcp", fmt.Sprintf(":%v", port))
 	if err != nil {
 		fmt.Printf("Failed to Start Relay Server: %v\n", err)
