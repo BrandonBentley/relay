@@ -36,9 +36,8 @@ func (c *Connection) ReadAndWriteTo(destination Connection) error {
 }
 
 func (c *Connection) ReadAll() ([]byte, error) {
-	bytes := make([]byte, 1000)
-	read, err := c.Reader.Read(bytes)
-	return bytes[:read], err
+	read, err := c.Reader.Read(c.Buffer)
+	return c.Buffer[:read], err
 }
 
 func (c *Connection) Write(data []byte) error {

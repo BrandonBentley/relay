@@ -10,7 +10,6 @@ import (
 
 func main() {
 	conf := getConfig()
-
 	server.StartServer(conf.Port)
 }
 

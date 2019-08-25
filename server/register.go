@@ -28,7 +28,7 @@ func registerNewRelayConnections(ln net.Listener) {
 // returns true if connection was a newly registered service.
 func handleRelayConnection(conn net.Conn, port int) bool {
 	c := NewConnection(conn)
-
+	fmt.Println("New Connection")
 	timer := time.NewTimer(time.Millisecond * 1000)
 
 	ch := make(chan bool, 0)
@@ -53,7 +53,6 @@ func handleRelayConnection(conn net.Conn, port int) bool {
 			if connectionChannel, ok := connectionChannels[relayPort]; ok {
 				connectionChannel <- c
 			} else {
-				fmt.Println("MISSED IT BY THAT MUCH")
 				conn.Close()
 			}
 		} else {
