@@ -90,9 +90,7 @@ func NewRelayService(conn Connection, port int) relayService {
 }
 
 func (r *relayService) Start() error {
-
 	ConnectionMonitor.Add(r.port)
-	fmt.Println("ADDED ", r.port)
 	rln, err := net.Listen("tcp", fmt.Sprintf(":%v", r.port))
 	if err != nil {
 		fmt.Println("Failed to Start Relay Service: %v", err)
