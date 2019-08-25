@@ -9,7 +9,7 @@ import (
 func StartServer(port int) {
 	ln, err := net.Listen("tcp", fmt.Sprintf(":%v", port))
 	if err != nil {
-		fmt.Println("Failed to Start Relay Server: %v", err)
+		fmt.Printf("Failed to Start Relay Server: %v\n", err)
 		os.Exit(1)
 	}
 	defer ln.Close()

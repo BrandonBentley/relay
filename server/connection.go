@@ -9,14 +9,16 @@ import (
 )
 
 var connectionChannels map[int]chan Connection
-var BufferSize = 1000
+var BufferSize = 4096
+var StartingPortNumber = 8081
+var ConnectionChannelSize = 10
 
 func init() {
 	connectionChannels = map[int]chan Connection{}
 }
 
 func NewConnection(conn net.Conn) Connection {
-	return Connection{conn, bufio.NewReader(conn), make([]byte, BufferSize), 0}
+	return Connection{conn, bufio.NewReader(conn), make([]byte, BufferSize)}
 }
 
 type Connection struct {
@@ -66,7 +68,7 @@ func NewConnectionCoupler(server, client Connection) *ConnectionCoupler {
 	}
 }
 
-func (cc *ConnectionCoupler) Active() bool {
+func (cc *ConnectionCoupler) IsActive() bool {
 	timer := time.NewTimer(time.Millisecond)
 	ch := make(chan bool, 0)
 	go func() {
@@ -85,18 +87,8 @@ func (cc *ConnectionCoupler) Couple() {
 	cc.wg.Add(2)
 	go func() {
 		for {
-			data, err := cc.ServerConn.ReadAll()
+			err := cc.ServerConn.ReadAndWriteTo(cc.ClientConn)
 			if err != nil {
-				fmt.Println(err)
-				fmt.Println("CLOSING FROM SERVER SIDE")
-				cc.ServerConn.Close()
-				cc.ClientConn.Close()
-				break
-			}
-			err = cc.ClientConn.Write(data)
-			if err != nil {
-				fmt.Println(err)
-				fmt.Println("CLOSING FROM SERVER SIDE")
 				cc.ServerConn.Close()
 				cc.ClientConn.Close()
 				break
@@ -106,18 +98,8 @@ func (cc *ConnectionCoupler) Couple() {
 	}()
 	go func() {
 		for {
-			data, err := cc.ClientConn.ReadAll()
+			err := cc.ClientConn.ReadAndWriteTo(cc.ServerConn)
 			if err != nil {
-				fmt.Println(err)
-				fmt.Println("CLOSING FROM CLIENT SIDE")
-				cc.ServerConn.Close()
-				cc.ClientConn.Close()
-				break
-			}
-			err = cc.ServerConn.Write(data)
-			if err != nil {
-				fmt.Println(err)
-				fmt.Println("CLOSING FROM CLIENT SIDE")
 				cc.ServerConn.Close()
 				cc.ClientConn.Close()
 				break

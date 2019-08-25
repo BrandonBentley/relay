@@ -11,13 +11,12 @@ import (
 )
 
 func registerNewRelayConnections(ln net.Listener) {
-	port := 8081
+	port := StartingPortNumber
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
-			fmt.Printf("Failed to Accept Connection: %v\n", err)
-			conn.Close()
-			continue
+			fmt.Printf("FATAL: Failed to Accept Connection: %v\n", err)
+			break
 		}
 		if handleRelayConnection(conn, port) {
 			port++
@@ -62,7 +61,7 @@ func handleRelayConnection(conn net.Conn, port int) bool {
 		}
 		return false
 	case <-timer.C:
-		channel := make(chan Connection, 10)
+		channel := make(chan Connection, ConnectionChannelSize)
 		connectionChannels[port] = channel
 		relay := NewRelayService(c, port)
 		err := relay.Start()
@@ -70,7 +69,7 @@ func handleRelayConnection(conn net.Conn, port int) bool {
 			fmt.Println("%v :: %v", port, err)
 		}
 		c.Conn.Write([]byte(fmt.Sprintf("%v\n", port)))
-		fmt.Printf("Successfully Accepted Relay Client Connection: %v\n", fmt.Sprintf("%v:%v", relay.address, port))
+		fmt.Printf("Successfully Accepted Relay Client Connection: %v\n", fmt.Sprintf("%v:%v", relay.address, relay.port))
 	}
 	return true
 }
@@ -99,9 +98,25 @@ func (r *relayService) Start() error {
 		return err
 	}
 	go func() {
+		bytes := make([]byte, 1)
+		for {
+			_, err := r.serviceConn.Reader.Read(bytes)
+			if err != nil {
+				close(connectionChannels[r.port])
+				delete(connectionChannels, r.port)
+				rln.Close()
+				break
+			}
+		}
+		fmt.Printf("Relay Client: %v Disconnected\n", fmt.Sprintf("%v:%v", r.address, r.port))
+	}()
+	go func() {
 		for {
 			conn, err := rln.Accept()
 			if err != nil {
+				if strings.Contains(err.Error(), "closed network connection") {
+					break
+				}
 				fmt.Printf("Port %v: Failed to Accept Connection: %v\n", r.port, err)
 			}
 			clientConnection := NewConnection(conn)
