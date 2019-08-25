@@ -114,7 +114,7 @@ func (cc *ConnectionCoupler) Couple() {
 				cc.ClientConn.Close()
 				break
 			}
-			err = cc.ServerConn.Write()
+			err = cc.ServerConn.Write(data)
 			if err != nil {
 				fmt.Println(err)
 				fmt.Println("CLOSING FROM CLIENT SIDE")
