@@ -18,6 +18,18 @@ func registerNewRelayConnections(ln net.Listener) {
 			fmt.Printf("FATAL: Failed to Accept Connection: %v\n", err)
 			break
 		}
+		for i := 0; i < RelayPortRetryAttempts; i++ {
+			rln, err := net.Listen("tcp", fmt.Sprintf(":%v", port))
+			if err == nil {
+				rln.Close()
+				break
+			} else {
+				if strings.Contains(err.Error(), "Only one usage of each socket address") {
+					port++
+					continue
+				}
+			}
+		}
 		if handleRelayConnection(conn, port) {
 			port++
 		}
@@ -32,7 +44,6 @@ func handleRelayConnection(conn net.Conn, port int) bool {
 
 	ch := make(chan bool, 0)
 	var relayPort int
-
 	go func() {
 		relayAddress, err := c.Reader.ReadString('\n')
 		if err != nil {
@@ -64,7 +75,9 @@ func handleRelayConnection(conn net.Conn, port int) bool {
 		relay := NewRelayService(c, port)
 		err := relay.Start()
 		if err != nil {
-			fmt.Println("%v :: %v", port, err)
+			fmt.Printf("Failed to Start Relay Service:: %v :: %v", port, err)
+			c.Conn.Close()
+			return false
 		}
 		c.Conn.Write([]byte(fmt.Sprintf("%v\n", port)))
 		fmt.Printf("Successfully Accepted Relay Client Connection: %v\n", fmt.Sprintf("%v:%v", relay.address, relay.port))
@@ -93,7 +106,6 @@ func (r *relayService) Start() error {
 	ConnectionMonitor.Add(r.port)
 	rln, err := net.Listen("tcp", fmt.Sprintf(":%v", r.port))
 	if err != nil {
-		fmt.Println("Failed to Start Relay Service: %v", err)
 		return err
 	}
 	go func() {
@@ -101,7 +113,9 @@ func (r *relayService) Start() error {
 		for {
 			_, err := r.serviceConn.Reader.Read(bytes)
 			if err != nil {
-				close(connectionChannels[r.port])
+				if connectionChannels[r.port] != nil {
+					close(connectionChannels[r.port])
+				}
 				delete(connectionChannels, r.port)
 				rln.Close()
 				break

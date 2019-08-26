@@ -63,7 +63,9 @@ func (m *Monitor) Add(port int) {
 }
 
 func (m *Monitor) Delete(port int) {
-	close(m.connectionCountChannels[port])
+	if m.connectionCountChannels[port] != nil {
+		close(m.connectionCountChannels[port])
+	}
 	delete(m.connectionCounts, port)
 	delete(m.connectionCountChannels, port)
 }

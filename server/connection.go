@@ -11,6 +11,7 @@ import (
 var connectionChannels map[int]chan Connection
 var BufferSize = 4096
 var StartingPortNumber = 8081
+var RelayPortRetryAttempts = 20
 var ConnectionChannelSize = 10
 
 var MonitorPort = 8079
