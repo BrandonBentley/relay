@@ -7,11 +7,16 @@ import (
 	"os"
 )
 
+// Monitor is used to see what ports are currently listening
+// as well as how many active connections are on each port.
 type Monitor struct {
 	connectionCountChannels map[int]chan int
 	connectionCounts        map[int]int
 }
 
+// NewMonitor starts an HTTP server that returns a json
+// representation of the active relay ports and the
+// client connection count for each.
 func NewMonitor(port int) *Monitor {
 	mon := &Monitor{
 		connectionCountChannels: map[int]chan int{},
@@ -36,6 +41,7 @@ func NewMonitor(port int) *Monitor {
 	return mon
 }
 
+// Add sets up to monitor the port passed in
 func (m *Monitor) Add(port int) {
 	if _, ok := m.connectionCountChannels[port]; !ok {
 		m.connectionCountChannels[port] = make(chan int)
@@ -62,6 +68,7 @@ func (m *Monitor) Add(port int) {
 	}()
 }
 
+// Delete Removes the provided port from being monitored
 func (m *Monitor) Delete(port int) {
 	if m.connectionCountChannels[port] != nil {
 		close(m.connectionCountChannels[port])

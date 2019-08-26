@@ -10,6 +10,9 @@ import (
 	"time"
 )
 
+// registerNewRelayConnections Handles the connection from
+// client application that are registering to have their traffic
+// relayed.
 func registerNewRelayConnections(ln net.Listener) {
 	port := StartingPortNumber
 	for {
@@ -85,6 +88,8 @@ func handleRelayConnection(conn net.Conn, port int) bool {
 	return true
 }
 
+// relayService is the struct used to contain the
+// information need to start a relayed service.
 type relayService struct {
 	serviceConn      Connection
 	port             int
@@ -92,6 +97,7 @@ type relayService struct {
 	connectionString string
 }
 
+// NewRelayService sets up and returns a new relayService
 func NewRelayService(conn Connection, port int) relayService {
 	address := conn.Conn.LocalAddr().(*net.TCPAddr).IP.String()
 	return relayService{
@@ -102,6 +108,11 @@ func NewRelayService(conn Connection, port int) relayService {
 	}
 }
 
+// Start sets up the attached relayService to listen and handle
+// coupling of client connections with the relayed service
+// connections. Returns immediately after setting up listener.
+// Also if the connection to the service is disconnected the
+// listener shuts down.
 func (r *relayService) Start() error {
 	ConnectionMonitor.Add(r.port)
 	rln, err := net.Listen("tcp", fmt.Sprintf(":%v", r.port))
@@ -147,6 +158,8 @@ func (r *relayService) Start() error {
 	return nil
 }
 
+// RequestNewConnection signals the relayed client application
+// to provide another Connection and returns the connection.
 func (r *relayService) RequestNewConnection() (Connection, error) {
 	err := r.serviceConn.Write([]byte("\n"))
 	if err != nil {

@@ -17,7 +17,12 @@ func main() {
 	if conf.StartingPort != 0 {
 		server.StartingPortNumber = conf.StartingPort
 	}
-	server.StartServer(conf.Port)
+
+	err := server.StartServer(conf.Port)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 }
 
 type config struct {
@@ -76,6 +81,5 @@ func getConfig() config {
 			}
 		}
 	}
-	fmt.Println(conf)
 	return conf
 }
