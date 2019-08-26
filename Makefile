@@ -19,6 +19,7 @@ echoclient: buildechoclient
 
 buildechoserver:
 	go build -o util/echoserver tools/echoserver/echo.go
+	cp util/echoserver echoserver
 
 buildechoclient: 
 	go build -o util/echoclient tools/echoclient/client.go
