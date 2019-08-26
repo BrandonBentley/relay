@@ -69,7 +69,7 @@ curl -X GET \
 
 
 ## Programming Existing TCP Server to use Relay Service
-If you are using Go you can use the simple implementation of the net.Listener interface found in [listener.go](tools\echoserver\relayclient\listener.go).
+If you are using Go you can use the simple implementation of the net.Listener interface found in [listener.go](https://github.com/BrandonBentley/relay/blob/master/relayclient/listener.go).
 
 ### Connection Procedure
 1. Dial the Relay Service via TCP (example: localhost:8080)
