@@ -18,7 +18,7 @@ This repo was successfully build using the following version of go:
 ```
 
 ## Build
-The included Makefile has ever command need to run and test the relay server.
+The included Makefile has every command needed to run and test the relay server.
 ##### Build and Run Relay
 ```bash 
 make
