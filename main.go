@@ -30,13 +30,17 @@ func setup(conf config) {
 	if conf.RetryAmount != 0 {
 		server.RelayPortRetryAttempts = conf.RetryAmount
 	}
+	if conf.MonitoringPort != 0 {
+		server.MonitorPort = conf.MonitoringPort
+	}
 }
 
 type config struct {
-	Port         int
-	BufferSize   int
-	StartingPort int
-	RetryAmount  int
+	Port           int
+	BufferSize     int
+	StartingPort   int
+	RetryAmount    int
+	MonitoringPort int
 }
 
 func getConfig() config {
@@ -102,6 +106,18 @@ func getConfig() config {
 					}
 				}
 				skip = true
+			} else if v == "-m" || v == "--monitorport" {
+				if i+1 < length {
+					if strings.Contains(flagArgs[i+1], "-") {
+						fmt.Println("monitorPort (int) missing")
+						printHelp(1)
+					}
+					if conf.MonitoringPort, err = strconv.Atoi(flagArgs[i+1]); err != nil {
+						fmt.Println(flagArgs[i+1], " is an invalid monitor port number")
+						printHelp(1)
+					}
+				}
+				skip = true
 			} else {
 				fmt.Printf("%v is not a valid option", v)
 				printHelp(1)
@@ -118,6 +134,7 @@ func printHelp(exit int) {
 	formatString := "%-30v %v\n"
 	fmt.Printf(formatString, "-b, --buffersize {size}", "set the size of each connection coupler (in bytes).")
 	fmt.Printf(formatString, "-p, --startingport {port}", "set first port to be used for relayed clients.")
+	fmt.Printf(formatString, "-m, --monitorport {port}", "set port for the monitoring HTTP endpoint")
 	fmt.Printf(formatString, "-r, --retryattempts {count}", "set the number of retry attempts allowed when finding")
 	fmt.Printf(formatString, "", " an available port for a new relay client.")
 
