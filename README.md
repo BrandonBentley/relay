@@ -74,7 +74,7 @@ If you are using Go you can use the simple implementation of the net.Listener in
 ### Connection Procedure
 1. Dial the Relay Service via TCP (example: localhost:8080)
    
-2. After establishing a connection the port number to be sent back followed by a '\n' via the connection. (example: "8081\n")
+2. After establishing a connection, the port number will be sent back followed by a '\n' via the connection. (example: "8081\n")
    
    Note: This connection must remain live throughout the life of the relayed service.
 
