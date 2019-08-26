@@ -129,8 +129,10 @@ func getConfig() config {
 
 func printHelp(exit int) {
 	fmt.Println("\nRelay Server")
-	fmt.Println("-------------------------------------------\n")
-	fmt.Println("usage: relay port {optional params}\n")
+	fmt.Println("-------------------------------------------")
+	fmt.Println()
+	fmt.Println("usage: relay port {optional params}")
+	fmt.Println()
 	formatString := "%-30v %v\n"
 	fmt.Printf(formatString, "-b, --buffersize {size}", "set the size of each connection coupler (in bytes).")
 	fmt.Printf(formatString, "-p, --startingport {port}", "set first port to be used for relayed clients.")
