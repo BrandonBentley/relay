@@ -2,10 +2,10 @@ run: build
 	./relay 8080
 
 build:
-	go build -o relay main.go
+	go build -race -o relay main.go
 
 test:
-	go test -timeout 30s -run TestEchoServer
+	go test -timeout 30s -run TestEchoServer -race
 
 hog:
 	go build -o util/hog tools/portHog/hog.go
