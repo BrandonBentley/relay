@@ -48,7 +48,9 @@ func handleRelayConnection(conn net.Conn, port int) bool {
 	ch := make(chan bool, 0)
 	var relayPort int
 	go func() {
+		c.Conn.SetReadDeadline(time.Now().Add(time.Second))
 		relayAddress, err := c.Reader.ReadString('\n')
+		c.Conn.SetReadDeadline(time.Time{})
 		if err != nil {
 			ch <- false
 		}
@@ -63,7 +65,7 @@ func handleRelayConnection(conn net.Conn, port int) bool {
 	select {
 	case read := <-ch:
 		if read {
-			if connectionChannel, ok := connectionChannels[relayPort]; ok {
+			if connectionChannel, ok := getConnectionChannel(relayPort); ok {
 				connectionChannel <- c
 			} else {
 				conn.Close()
@@ -73,8 +75,7 @@ func handleRelayConnection(conn net.Conn, port int) bool {
 		}
 		return false
 	case <-timer.C:
-		channel := make(chan Connection, ConnectionChannelSize)
-		connectionChannels[port] = channel
+		makeConnectionChannel(port)
 		relay := NewRelayService(c, port)
 		err := relay.Start()
 		if err != nil {
@@ -82,7 +83,6 @@ func handleRelayConnection(conn net.Conn, port int) bool {
 			c.Conn.Close()
 			return false
 		}
-		c.Conn.Write([]byte(fmt.Sprintf("%v\n", port)))
 		fmt.Printf("Successfully Accepted Relay Client Connection: %v\n", fmt.Sprintf("%v:%v", relay.address, relay.port))
 	}
 	return true
@@ -119,15 +119,16 @@ func (r *relayService) Start() error {
 	if err != nil {
 		return err
 	}
+	r.serviceConn.Write([]byte(fmt.Sprintf("%v\n", r.port)))
 	go func() {
 		bytes := make([]byte, 1)
 		for {
 			_, err := r.serviceConn.Reader.Read(bytes)
 			if err != nil {
-				if connectionChannels[r.port] != nil {
-					close(connectionChannels[r.port])
+				if channel, ok := getConnectionChannel(r.port); ok && channel != nil {
+					close(channel)
 				}
-				delete(connectionChannels, r.port)
+				deleteConnectionChannel(r.port)
 				rln.Close()
 				break
 			}
@@ -169,10 +170,11 @@ func (r *relayService) RequestNewConnection() (Connection, error) {
 	timer := time.NewTimer(time.Millisecond * 1000)
 
 	var conn Connection
+	channel, _ := getConnectionChannel(r.port)
 	select {
 	case <-timer.C:
 		return Connection{}, errors.New("Connection Timeout")
-	case conn = <-connectionChannels[r.port]:
+	case conn = <-channel:
 	}
 	return conn, nil
 }

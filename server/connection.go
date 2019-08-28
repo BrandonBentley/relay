@@ -7,6 +7,7 @@ import (
 )
 
 var connectionChannels map[int]chan Connection
+var connectionMapMutex sync.Mutex
 var BufferSize = 4096
 
 var StartingPortNumber = 8081
@@ -17,8 +18,28 @@ var ConnectionChannelSize = 10
 var MonitorPort = 8079
 var ConnectionMonitor *Monitor
 
+func getConnectionChannel(port int) (chan Connection, bool) {
+	connectionMapMutex.Lock()
+	channel, ok := connectionChannels[port]
+	connectionMapMutex.Unlock()
+	return channel, ok
+}
+
+func makeConnectionChannel(port int) {
+	connectionMapMutex.Lock()
+	connectionChannels[port] = make(chan Connection, ConnectionChannelSize)
+	connectionMapMutex.Unlock()
+}
+
+func deleteConnectionChannel(port int) {
+	connectionMapMutex.Lock()
+	delete(connectionChannels, port)
+	connectionMapMutex.Unlock()
+}
+
 func init() {
 	connectionChannels = map[int]chan Connection{}
+	connectionMapMutex = sync.Mutex{}
 }
 
 // NewConnection returns a wrapped net.Conn with an
@@ -80,7 +101,10 @@ func NewConnectionCoupler(server, client Connection, port int) *ConnectionCouple
 
 // Couple starts coupling the client and server connection together
 func (cc *ConnectionCoupler) Couple() {
-	ConnectionMonitor.connectionCountChannels[cc.port] <- 1
+	ConnectionMonitor.channelMutex.Lock()
+	channel := ConnectionMonitor.connectionCountChannels[cc.port]
+	ConnectionMonitor.channelMutex.Unlock()
+	channel <- 1
 	cc.wg.Add(2)
 	go func() {
 		for {
@@ -106,6 +130,6 @@ func (cc *ConnectionCoupler) Couple() {
 	}()
 	go func() {
 		cc.wg.Wait()
-		ConnectionMonitor.connectionCountChannels[cc.port] <- -1
+		channel <- -1
 	}()
 }

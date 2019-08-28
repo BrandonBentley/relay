@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sync"
 )
 
 // Monitor is used to see what ports are currently listening
@@ -12,6 +13,9 @@ import (
 type Monitor struct {
 	connectionCountChannels map[int]chan int
 	connectionCounts        map[int]int
+	addChannel              chan int
+	countMutex              sync.Mutex
+	channelMutex            sync.Mutex
 }
 
 // NewMonitor starts an HTTP server that returns a json
@@ -21,9 +25,14 @@ func NewMonitor(port int) *Monitor {
 	mon := &Monitor{
 		connectionCountChannels: map[int]chan int{},
 		connectionCounts:        map[int]int{},
+		addChannel:              make(chan int, 10),
+		countMutex:              sync.Mutex{},
+		channelMutex:            sync.Mutex{},
 	}
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		mon.countMutex.Lock()
 		bytes, err := json.MarshalIndent(mon.connectionCounts, "", "    ")
+		mon.countMutex.Unlock()
 		if err != nil {
 			w.WriteHeader(500)
 			w.Write([]byte(fmt.Sprintf("ERROR OCCURED: %v", err)))
@@ -38,41 +47,66 @@ func NewMonitor(port int) *Monitor {
 			os.Exit(5)
 		}
 	}()
+	go mon.addSubRoutine()
 	return mon
+}
+
+func (m *Monitor) addSubRoutine() {
+	var port int
+	var wg sync.WaitGroup
+	for {
+		port = <-m.addChannel
+		m.channelMutex.Lock()
+		if _, ok := m.connectionCountChannels[port]; !ok {
+			m.connectionCountChannels[port] = make(chan int)
+		}
+		m.channelMutex.Unlock()
+		m.countMutex.Lock()
+		if _, ok := m.connectionCounts[port]; !ok {
+			m.connectionCounts[port] = 0
+		}
+		m.countMutex.Unlock()
+		wg.Add(1)
+		go func() {
+			localPort := port
+			wg.Done()
+			for {
+				m.channelMutex.Lock()
+				if channel, ok := m.connectionCountChannels[localPort]; ok {
+					m.channelMutex.Unlock()
+					change := <-channel
+					if change == 0 {
+
+						break
+					}
+					m.countMutex.Lock()
+					m.connectionCounts[localPort] = m.connectionCounts[localPort] + change
+					m.countMutex.Unlock()
+				} else {
+					m.channelMutex.Unlock()
+					break
+				}
+			}
+		}()
+		wg.Wait()
+	}
 }
 
 // Add sets up to monitor the port passed in
 func (m *Monitor) Add(port int) {
-	if _, ok := m.connectionCountChannels[port]; !ok {
-		m.connectionCountChannels[port] = make(chan int)
-	}
-
-	if _, ok := m.connectionCounts[port]; !ok {
-		m.connectionCounts[port] = 0
-	}
-
-	go func() {
-		for {
-			if _, ok := m.connectionCountChannels[port]; ok {
-				change := <-m.connectionCountChannels[port]
-				if change == 0 {
-					break
-				}
-				m.connectionCounts[port] = m.connectionCounts[port] + change
-
-			} else {
-				break
-			}
-
-		}
-	}()
+	m.addChannel <- port
 }
 
 // Delete Removes the provided port from being monitored
 func (m *Monitor) Delete(port int) {
+	m.channelMutex.Lock()
 	if m.connectionCountChannels[port] != nil {
 		close(m.connectionCountChannels[port])
 	}
-	delete(m.connectionCounts, port)
 	delete(m.connectionCountChannels, port)
+	m.channelMutex.Unlock()
+
+	m.countMutex.Lock()
+	delete(m.connectionCounts, port)
+	m.countMutex.Unlock()
 }
