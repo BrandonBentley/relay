@@ -121,9 +121,14 @@ func (cc *ConnectionCoupler) Couple(shutdown chan bool) {
 	}
 	ConnectionMonitor.channelMutex.Unlock()
 	cc.wg.Add(2)
+	disconnect := make(chan bool, 0)
 	go func() {
-		<-shutdown
-		cc.ServerConn.Close()
+		select {
+		case <-shutdown:
+			cc.ServerConn.Close()
+		case <-disconnect:
+		}
+
 	}()
 	go func() {
 		for {
@@ -155,6 +160,6 @@ func (cc *ConnectionCoupler) Couple(shutdown chan bool) {
 		if channel != nil {
 			channel <- -1
 		}
-
+		close(disconnect)
 	}()
 }
