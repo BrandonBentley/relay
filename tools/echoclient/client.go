@@ -15,7 +15,7 @@ var conf config
 
 func main() {
 	conf = getConfig()
-	numConnections := 50
+	numConnections := 20
 	for {
 		if true {
 			wg.Add(numConnections)
@@ -27,7 +27,7 @@ func main() {
 		}
 	}
 
-	time.Sleep(time.Millisecond * 200)
+	time.Sleep(time.Second)
 
 	func() {
 		conn, err := net.Dial("tcp", fmt.Sprintf("127.0.0.1:%v", conf.Port))

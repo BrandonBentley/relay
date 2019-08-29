@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -167,8 +166,8 @@ func (r *relayService) Start() error {
 func (r *relayService) RequestNewConnection() (Connection, error) {
 	err := r.serviceConn.Write([]byte("\n"))
 	if err != nil {
-		fmt.Println("-----------------------ERROR")
-		os.Exit(3)
+		r.serviceConn.Close()
+		return Connection{}, err
 	}
 	timer := time.NewTimer(time.Millisecond * 1000)
 
