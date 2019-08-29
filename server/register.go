@@ -43,38 +43,25 @@ func registerNewRelayConnections(ln net.Listener) {
 // returns true if connection was a newly registered service.
 func handleRelayConnection(conn net.Conn, port int) bool {
 	c := NewConnection(conn)
-	timer := time.NewTimer(time.Millisecond * 1000)
-
-	ch := make(chan bool, 0)
 	var relayPort int
-	go func() {
-		c.Conn.SetReadDeadline(time.Now().Add(time.Second))
-		relayAddress, err := c.Reader.ReadString('\n')
-		c.Conn.SetReadDeadline(time.Time{})
-		if err != nil {
-			ch <- false
-		}
-		relayAddress = strings.ReplaceAll(relayAddress, "\n", "")
-		relayPort, err = strconv.Atoi(relayAddress)
-		if err != nil {
-			ch <- false
-		}
-		ch <- true
-	}()
 
-	select {
-	case read := <-ch:
-		if read {
-			if connectionChannel, ok := getConnectionChannel(relayPort); ok {
-				connectionChannel <- c
-			} else {
-				conn.Close()
-			}
+	c.Conn.SetReadDeadline(time.Now().Add(time.Second))
+	relayAddress, err := c.Reader.ReadString('\n')
+	c.Conn.SetReadDeadline(time.Time{})
+	isTimeoutError := false
+	if err != nil {
+		if strings.Contains(err.Error(), "i/o timeout") {
+			isTimeoutError = true
+		} else if strings.Contains(err.Error(), "forcibly closed by the remote host") {
+			return false
 		} else {
-			conn.Close()
+			fmt.Printf("++++++++++++++++++++++ %T : %v\n", err, err)
+			c.Close()
+			return false
 		}
-		return false
-	case <-timer.C:
+	}
+
+	if isTimeoutError {
 		makeConnectionChannel(port)
 		relay := NewRelayService(c, port)
 		err := relay.Start()
@@ -84,8 +71,19 @@ func handleRelayConnection(conn net.Conn, port int) bool {
 			return false
 		}
 		fmt.Printf("Successfully Accepted Relay Client Connection: %v\n", fmt.Sprintf("%v:%v", relay.address, relay.port))
+		return true
+	} else {
+		relayAddress = strings.ReplaceAll(relayAddress, "\n", "")
+		relayPort, err = strconv.Atoi(relayAddress)
+		if err != nil {
+			c.Close()
+			return false
+		}
+		if !pushToChannel(relayPort, c) {
+			conn.Close()
+		}
 	}
-	return true
+	return false
 }
 
 // relayService is the struct used to contain the
@@ -95,6 +93,7 @@ type relayService struct {
 	port             int
 	address          string
 	connectionString string
+	shutdown         chan bool
 }
 
 // NewRelayService sets up and returns a new relayService
@@ -105,7 +104,13 @@ func NewRelayService(conn Connection, port int) relayService {
 		port:             port,
 		address:          address,
 		connectionString: fmt.Sprintf("%v:%v", address, port),
+		shutdown:         make(chan bool, 0),
 	}
+}
+
+func (r *relayService) ShutDown() {
+	close(r.shutdown)
+	time.Sleep(time.Millisecond * 500)
 }
 
 // Start sets up the attached relayService to listen and handle
@@ -125,14 +130,12 @@ func (r *relayService) Start() error {
 		for {
 			_, err := r.serviceConn.Reader.Read(bytes)
 			if err != nil {
-				if channel, ok := getConnectionChannel(r.port); ok && channel != nil {
-					close(channel)
-				}
 				deleteConnectionChannel(r.port)
 				rln.Close()
 				break
 			}
 		}
+		r.ShutDown()
 		ConnectionMonitor.Delete(r.port)
 		fmt.Printf("Relay Client: %v Disconnected\n", fmt.Sprintf("%v:%v", r.address, r.port))
 	}()
@@ -153,7 +156,7 @@ func (r *relayService) Start() error {
 				continue
 			}
 			coupler := NewConnectionCoupler(serverConnection, clientConnection, r.port)
-			coupler.Couple()
+			coupler.Couple(r.shutdown)
 		}
 	}()
 	return nil

@@ -16,12 +16,15 @@ var conf config
 func main() {
 	conf = getConfig()
 	numConnections := 50
-	if true {
-		wg.Add(numConnections)
-		for i := 0; i < numConnections; i++ {
-			go talk()
+	for {
+		if true {
+			wg.Add(numConnections)
+			for i := 0; i < numConnections; i++ {
+				go talk()
+			}
+			wg.Wait()
+			time.Sleep(time.Second)
 		}
-		wg.Wait()
 	}
 
 	time.Sleep(time.Millisecond * 200)

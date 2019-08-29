@@ -24,6 +24,16 @@ func getConnectionChannel(port int) (chan Connection, bool) {
 	connectionMapMutex.Unlock()
 	return channel, ok
 }
+func pushToChannel(port int, con Connection) bool {
+	connectionMapMutex.Lock()
+	if channel, ok := connectionChannels[port]; ok && channel != nil {
+		channel <- con
+	} else {
+		return false
+	}
+	connectionMapMutex.Unlock()
+	return true
+}
 
 func makeConnectionChannel(port int) {
 	connectionMapMutex.Lock()
@@ -33,6 +43,9 @@ func makeConnectionChannel(port int) {
 
 func deleteConnectionChannel(port int) {
 	connectionMapMutex.Lock()
+	if channel, ok := connectionChannels[port]; ok && channel != nil {
+		close(channel)
+	}
 	delete(connectionChannels, port)
 	connectionMapMutex.Unlock()
 }
@@ -100,12 +113,18 @@ func NewConnectionCoupler(server, client Connection, port int) *ConnectionCouple
 }
 
 // Couple starts coupling the client and server connection together
-func (cc *ConnectionCoupler) Couple() {
+func (cc *ConnectionCoupler) Couple(shutdown chan bool) {
 	ConnectionMonitor.channelMutex.Lock()
 	channel := ConnectionMonitor.connectionCountChannels[cc.port]
+	if channel != nil {
+		channel <- 1
+	}
 	ConnectionMonitor.channelMutex.Unlock()
-	channel <- 1
 	cc.wg.Add(2)
+	go func() {
+		<-shutdown
+		cc.ServerConn.Close()
+	}()
 	go func() {
 		for {
 			err := cc.ServerConn.ReadAndWriteTo(cc.ClientConn)
@@ -130,6 +149,12 @@ func (cc *ConnectionCoupler) Couple() {
 	}()
 	go func() {
 		cc.wg.Wait()
-		channel <- -1
+		ConnectionMonitor.channelMutex.Lock()
+		channel := ConnectionMonitor.connectionCountChannels[cc.port]
+		ConnectionMonitor.channelMutex.Unlock()
+		if channel != nil {
+			channel <- -1
+		}
+
 	}()
 }

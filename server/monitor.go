@@ -100,9 +100,26 @@ func (m *Monitor) Add(port int) {
 // Delete Removes the provided port from being monitored
 func (m *Monitor) Delete(port int) {
 	m.channelMutex.Lock()
-	if m.connectionCountChannels[port] != nil {
-		close(m.connectionCountChannels[port])
+	channel := m.connectionCountChannels[port]
+	m.channelMutex.Unlock()
+
+	m.countMutex.Lock()
+	left := m.connectionCounts[port] - 6
+	m.countMutex.Unlock()
+
+	for i := 0; i < left; i++ {
+		<-channel
 	}
+	m.channelMutex.Lock()
+	close(channel)
+	m.channelMutex.Unlock()
+	for {
+		if _, more := <-channel; !more {
+			break
+		}
+	}
+
+	m.channelMutex.Lock()
 	delete(m.connectionCountChannels, port)
 	m.channelMutex.Unlock()
 
