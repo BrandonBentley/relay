@@ -116,10 +116,10 @@ func NewConnectionCoupler(server, client Connection, port int) *ConnectionCouple
 func (cc *ConnectionCoupler) Couple(shutdown chan bool) {
 	ConnectionMonitor.channelMutex.Lock()
 	channel := ConnectionMonitor.connectionCountChannels[cc.port]
+	ConnectionMonitor.channelMutex.Unlock()
 	if channel != nil {
 		channel <- 1
 	}
-	ConnectionMonitor.channelMutex.Unlock()
 	cc.wg.Add(2)
 	disconnect := make(chan bool, 0)
 	go func() {
@@ -154,9 +154,6 @@ func (cc *ConnectionCoupler) Couple(shutdown chan bool) {
 	}()
 	go func() {
 		cc.wg.Wait()
-		ConnectionMonitor.channelMutex.Lock()
-		channel := ConnectionMonitor.connectionCountChannels[cc.port]
-		ConnectionMonitor.channelMutex.Unlock()
 		if channel != nil {
 			channel <- -1
 		}
