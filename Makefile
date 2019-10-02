@@ -2,6 +2,9 @@ run: build
 	./relay 8080
 
 build:
+	go build -o relay main.go
+
+buildcheckrace:
 	go build -race -o relay main.go
 
 test:
