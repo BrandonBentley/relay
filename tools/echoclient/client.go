@@ -15,7 +15,7 @@ var conf config
 
 func main() {
 	conf = getConfig()
-	numConnections := 20
+	numConnections := 50
 	for {
 		if true {
 			wg.Add(numConnections)
@@ -23,7 +23,7 @@ func main() {
 				go talk()
 			}
 			wg.Wait()
-			time.Sleep(time.Second)
+			time.Sleep(time.Millisecond * 200)
 		}
 	}
 

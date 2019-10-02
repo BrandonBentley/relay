@@ -105,6 +105,7 @@ func (m *Monitor) Delete(port int) {
 
 	m.countMutex.Lock()
 	left := m.connectionCounts[port] - 6
+	delete(m.connectionCounts, port)
 	m.countMutex.Unlock()
 
 	for i := 0; i < left; i++ {
@@ -112,18 +113,11 @@ func (m *Monitor) Delete(port int) {
 	}
 	m.channelMutex.Lock()
 	close(channel)
+	delete(m.connectionCountChannels, port)
 	m.channelMutex.Unlock()
 	for {
 		if _, more := <-channel; !more {
 			break
 		}
 	}
-
-	m.channelMutex.Lock()
-	delete(m.connectionCountChannels, port)
-	m.channelMutex.Unlock()
-
-	m.countMutex.Lock()
-	delete(m.connectionCounts, port)
-	m.countMutex.Unlock()
 }
